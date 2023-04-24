@@ -1,0 +1,10 @@
+benchbot_run --robot carter_omni --env miniroom:1 --task semantic_slam:active:ground_truth
+
+envs:
+dev: miniroom, house
+test: apartment, office, company
+vars: {1,2,3,4,5} 
+
+benchbot_submit --example hello_passive
+
+benchbot_submit --native python3 ~/votenet_tutorial/votenet_benchbot.py
