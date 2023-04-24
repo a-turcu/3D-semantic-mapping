@@ -1,5 +1,13 @@
 from benchbot_api import ActionResult, Agent, BenchBot
 
+_CLASS_LIST = [
+    'bottle', 'cup', 'knife', 'bowl', 'wine glass', 'fork', 'spoon', 'banana',
+    'apple', 'orange', 'cake', 'potted plant', 'mouse', 'keyboard', 'laptop',
+    'cell phone', 'book', 'clock', 'chair', 'table', 'couch', 'bed', 'toilet',
+    'tv', 'microwave', 'toaster', 'refrigerator', 'oven', 'sink', 'person',
+    'background'
+]
+
 class DemoAgent(Agent):
     def is_done(self, action_result):
         return action_result != ActionResult.SUCCESS
