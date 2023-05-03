@@ -1,0 +1,4 @@
+name: data_collect_passive
+description: |
+  This example shows data collection using a passive control scheme.
+native_command: python3 data_collect_passive

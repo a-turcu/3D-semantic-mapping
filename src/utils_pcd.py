@@ -7,6 +7,7 @@ import trimesh
 
 DEPTH_PATH = "../data_cv2/depth_imgs/image_depth_"
 RGB_PATH = "../data_cv2/rgb_imgs/image_rgb_"
+CLOUD_PATH = "../data_cv2/point_clouds/"
 INTRINSIC_PATH = "../data_cv2/info_intrinsics.npy"
 IMAGE_WIDTH = 720
 IMAGE_HEIGHT = 1280
@@ -69,9 +70,14 @@ def to_ply(input_path, output_path, original_type):
 
 #path_demo = ".\mmdetection3d\demo\data\kitti\000008.bin"
 
-pcd = o3d.io.read_point_cloud("pcd_13.ply")
-o3d.visualization.draw_geometries([pcd])
-print(pcd)
+pcd = o3d.io.read_point_cloud(CLOUD_PATH + "pcd_16.ply")
+#o3d.visualization.draw_geometries([pcd])
+
+voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd,
+                                                            voxel_size=0.0001)
+#o3d.visualization.draw_geometries([voxel_grid])
+
+
 
 # for i in range(21):
 #     img_nr = str(i)
