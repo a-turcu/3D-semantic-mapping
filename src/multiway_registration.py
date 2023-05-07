@@ -1,21 +1,25 @@
 import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
+from itearative_global_registration import pcd_pipeline
 
 
 pcd_list = []
 
 
-for i in range(15, 21):
-    rgb_img = np.load("D:/Master/Block5/CV2/Data/rgb_imgs/image_rgb_" + str(i) + ".npy")
-    plt.imshow(rgb_img)
-    plt.show()
+for i in range(56):
+    # rgb_img = np.load("D:/Master/Block5/CV2/Data/rgb_imgs/image_rgb_" + str(i) + ".npy")
+    # plt.imshow(rgb_img)
+    # plt.show()
+    pcd = pcd_pipeline(i)
+    
+    pcd_list.append(pcd)
 
 	# pcd = o3d.io.read_point_cloud("D:/Master/Block5/CV2/Data/pcd_" + str(i) + ".ply")
 	# # print(i)
 	# # o3d.visualization.draw_geometries([pcd])
 	# pcd_list.append(pcd)
-quit()
+
 def pairwise_registration(source, target):
     print("Apply point-to-plane ICP")
     icp_coarse = o3d.pipelines.registration.registration_icp(
@@ -63,17 +67,17 @@ def full_registration(pcds, max_correspondence_distance_coarse,
                                                              uncertain=True))
     return pose_graph
 
-voxel_size = 0.00001
+voxel_size = 0.00002
 
 pcds_down = []
 for pcd in pcd_list:
     pcd_down = pcd.voxel_down_sample(voxel_size=voxel_size)
     pcd_down.estimate_normals()
     pcds_down.append(pcd_down)
-    print("PCD")
-    print(pcd)
-    print(pcd_down)
-    print(np.asarray(pcd_down.points))
+    # print("PCD")
+    # print(pcd)
+    # print(pcd_down)
+    # print(np.asarray(pcd_down.points))
 
 
 print("Full registration ...")
@@ -125,7 +129,7 @@ o3d.io.write_point_cloud("multiway_registration.pcd", pcd_combined_down)
 
 
 combined = o3d.io.read_point_cloud("multiway_registration.pcd")
-print(combined)
+#print(combined)
 
 # for pcd in pcds_down:
 #     print("PCD")
