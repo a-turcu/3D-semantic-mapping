@@ -37,8 +37,7 @@ class DataCollectPassiveAgent(Agent):
 
         signal.signal(signal.SIGINT, self._die_gracefully)
 
-        self.vis = ObservationVisualiser(vis_list=['image_rgb', 'image_depth', 
-                                 'image_class', 'image_instance', 'laser','poses'])
+        self.vis = ObservationVisualiser(vis_list=['image_rgb', 'image_depth', 'laser','poses'])
     
     def _die_gracefully(self, sig, frame):
         print("")
@@ -62,18 +61,22 @@ class DataCollectPassiveAgent(Agent):
                                   if os.path.isdir(osj(self.result_dir, d))])
             rgb_img_path = osj(self.result_dir, self.env, 
                                 '{0:06d}'.format(self.run_id), 'RGB')
+        
+            info_rgb_path = osj(self.result_dir, self.env, 
+                                '{0:06d}'.format(self.run_id), 'RGB_info')
+
             depth_img_path = osj(self.result_dir, self.env, 
                                 '{0:06d}'.format(self.run_id), 'depth')
-            inst_img_path = osj(self.result_dir, self.env, 
-                                '{0:06d}'.format(self.run_id), 'instance_segment')
-            class_img_path = osj(self.result_dir, self.env, 
-                                '{0:06d}'.format(self.run_id), 'class_segment')
+            # inst_img_path = osj(self.result_dir, self.env, 
+            #                     '{0:06d}'.format(self.run_id), 'instance_segment')
+            # class_img_path = osj(self.result_dir, self.env, 
+            #                     '{0:06d}'.format(self.run_id), 'class_segment')
             laser_path = osj(self.result_dir, self.env, 
                                 '{0:06d}'.format(self.run_id), 'laser')
             poses_path = osj(self.result_dir, self.env, 
                                 '{0:06d}'.format(self.run_id), 'poses')
             self.paths = {'rgb': rgb_img_path, 'depth': depth_img_path,
-                          'instance': inst_img_path, 'class': class_img_path,
+                          'info_rgb': info_rgb_path,
                           'laser': laser_path, 'poses': poses_path}
             
             for key, save_path in self.paths.items():    

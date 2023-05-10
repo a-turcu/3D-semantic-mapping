@@ -16,15 +16,15 @@ def save_data(paths, observations, step_count):
       np.save(f, observations['image_depth'])
   
   # Save the instance image to file (numpy array format)
-  instance_array = osj(paths['instance'],
-                          '{0:06d}.npy'.format(step_count))
-  with open(instance_array, 'wb') as f:
-      np.save(f, observations['image_segment']['instance_segment_img'])
+#   instance_array = osj(paths['instance'],
+#                           '{0:06d}.npy'.format(step_count))
+#   with open(instance_array, 'wb') as f:
+#       np.save(f, observations['image_segment']['instance_segment_img'])
   
   # Save the class image to file
-  class_img_name = osj(paths['class'],
-                          '{0:06d}.png'.format(step_count))
-  Image.fromarray(observations['image_segment']['class_segment_img'].astype(np.uint8)).save(class_img_name)
+#   class_img_name = osj(paths['class'],
+#                           '{0:06d}.png'.format(step_count))
+#   Image.fromarray(observations['image_segment']['class_segment_img'].astype(np.uint8)).save(class_img_name)
 
   # Save all the pose data for the current pose to a pickle file
   # NOTE may want to condense to a single file saved at the end but
@@ -32,7 +32,11 @@ def save_data(paths, observations, step_count):
   poses_pickle = osj(paths['poses'], '{0:06d}.pkl'.format(step_count))
   with open(poses_pickle, 'wb') as f:
       pickle.dump(observations['poses'], f)
-  
+
+  rgb_info_pickle = osj(paths['info_rgb'], '{0:06d}.pkl'.format(step_count))
+  with open(rgb_info_pickle, 'wb') as f:
+      pickle.dump(observations['image_rgb_info'], f)
+
   # Save all the laser data for the current pose to a pickle file
   # NOTE may want to condense to a single file saved at the end but
   # for now keeping consistent with other data points

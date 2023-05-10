@@ -18,6 +18,6 @@ OPEN MM LAB
 
 python demo/pcd_demo.py ..\pcd_16.bin configs\h3dnet\h3dnet_8xb3_scannet-seg.py checkpoints\h3dnet_3x8_scannet-3d-18class_20210824_003149-414bd304.pth --show
 
-python demo/pcd_demo.py ..\pcd_16.bin configs\fcaf3d\fcaf3d_2xb8_sunrgbd-3d-10class.py checkpoints\fcaf3d_8x2_sunrgbd-3d-10class_20220805_165017.pth --show
+python demo/pcd_demo.py ..\pcd_16.bin configs/fcaf3d/fcaf3d_2xb8_sunrgbd-3d-10class.py checkpoints/fcaf3d_8x2_sunrgbd-3d-10class_20220805_165017.pth --show
 
-python demo/pcd_demo.py ..\pcd_16.bin configs\h3dnet\h3dnet_8xb3_scannet-seg.py checkpoints\h3dnet_3x8_scannet-3d-18class_20210824_003149-414bd304.pth --show
+python demo/pcd_demo.py ../pcd_16.bin configs/h3dnet/h3dnet_8xb3_scannet-seg.py checkpoints/h3dnet_3x8_scannet-3d-18class_20210824_003149-414bd304.pth --show

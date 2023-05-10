@@ -5,46 +5,64 @@ import pandas as pd
 from plyfile import PlyData
 import trimesh
 import pickle
+import scipy.io as sio
+from PIL import Image
+from mmdet3d.visualization import Det3DLocalVisualizer
+from mmdet3d.apis import inference_detector, init_model, inference_segmentor
+from mmdet3d.registry import VISUALIZERS
 
-DEPTH_PATH = "../data_cv2/raw_data/depth_imgs/image_depth_"
-RGB_PATH = "../data_cv2/raw_data/rgb_imgs/image_rgb_"
-CLOUD_PATH = "../data_cv2/point_clouds/"
-INTRINSIC_PATH = "../data_cv2/raw_data/info_intrinsics.npy"
+DEPTH_PATH = "../data/benchbot_data_passive/miniroom_1/000000/depth/" 
+DEPTH_MAT_PATH = "../data/benchbot_data_passive/miniroom_1/000000/depth_mat/"
+RGB_PATH = "../data/benchbot_data_passive/miniroom_1/000000/RGB/"
+CLOUD_PATH = "../data/benchbot_data_passive/miniroom_1/000000/point_clouds/"
+INFO_PATH = "../data/benchbot_data_passive/miniroom_1/000000/RGB_info/"
+
+
 IMAGE_WIDTH = 720
 IMAGE_HEIGHT = 1280
 NUM_POINTS = 40000
 
-def load_image(path):
-    img = np.load(path)
-    return o3d.geometry.Image(img)
+
+CHCKPOINT_FILE = "mmdetection3d/checkpoints/votenet_16x8_sunrgbd-3d-10class_20210820_162823-bf11f014.pth"
+CONFIG_FILE = "mmdetection3d/configs/votenet/votenet_8xb16_sunrgbd-3d.py"
+
+#pointnet2_ssg_2xb16-cosine-200e_scannet-seg-xyz-only.py
+# pointnet2_ssg_xyz-only_16x2_cosine_200e_scannet_seg-3d-20class_20210514_143628-4e341a48.pth
+
+#! UNUSED O3D FUNCTIONS
+
+# def load_image(path):
+#     img = np.load(path)
+#     return o3d.geometry.Image(img)
 
 
-def load_intrinsic():
-    """" 
-    Loads the intrinsic matrices from a .npy file and return them as 
-    a list of o3d.camera.PinholeCameraIntrinsic objects
-    """
-    intrinsics = np.load(INTRINSIC_PATH)
-    intrinsics_list = []
+# def load_intrinsic():
+#     """" 
+#     Loads the intrinsic matrices from a .npy file and return them as 
+#     a list of o3d.camera.PinholeCameraIntrinsic objects
+#     """
+#     intrinsics = np.load(INTRINSIC_PATH)
+#     intrinsics_list = []
 
-    for i in range(0, intrinsics.shape[0], 9):
-        intr = intrinsics[i:i+9]
-        fx = intr[0]
-        cx = intr[2]
-        fy = intr[4]
-        cy = intr[5]
-        intrinsics_list.append(o3d.camera.PinholeCameraIntrinsic(IMAGE_WIDTH, IMAGE_HEIGHT, fx, fy, cx, cy))
-    return intrinsics_list
+#     for i in range(0, intrinsics.shape[0], 9):
+#         intr = intrinsics[i:i+9]
+#         fx = intr[0]
+#         cx = intr[2]
+#         fy = intr[4]
+#         cy = intr[5]
+        
+#         intrinsics_list.append(o3d.camera.PinholeCameraIntrinsic(IMAGE_WIDTH, IMAGE_HEIGHT, fx, fy, cx, cy))
+#     return intrinsics_list
 
 
-def rgbd_to_pcd(rgb_img, depth_img, intrinsic):
-    """
-    Converts a RGBD image to a point cloud
-    """
-    rgbd_img = o3d.geometry.RGBDImage.create_from_color_and_depth(rgb_img, depth_img, convert_rgb_to_intensity=False)
-    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_img, intrinsic)
-    pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-    return pcd
+# def rgbd_to_pcd(rgb_img, depth_img, intrinsic):
+#     """
+#     Converts a RGBD image to a point cloud
+#     """
+#     rgbd_img = o3d.geometry.RGBDImage.create_from_color_and_depth(rgb_img, depth_img, convert_rgb_to_intensity=False)
+#     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_img, intrinsic)
+#     pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+#     return pcd
 
 
 def convert_ply(input_path, output_path):
@@ -80,10 +98,11 @@ def preprocess_point_cloud(point_cloud):
     point_cloud = point_cloud[:, 0:3]  # do not use color for now
     floor_height = np.percentile(point_cloud[:, 2], 0.99)
     height = point_cloud[:, 2] - floor_height
+    
     point_cloud = np.concatenate(
         [point_cloud, np.expand_dims(height, 1)], 1)  # (N,4) or (N,7)
     point_cloud = random_sampling(point_cloud, NUM_POINTS)
-    pc = np.expand_dims(point_cloud.astype(np.float32), 0)  # (1,40000,4)
+    pc = np.expand_dims(point_cloud.astype(np.float32), 0)  # (1,n,4)
     return pc
 
 
@@ -107,18 +126,99 @@ def convert_depth_to_pointcloud(depth_image, intr):
     return point3d
 
 
-# pcd = o3d.io.read_point_cloud(CLOUD_PATH + "pcd_16.ply")
-# o3d.visualization.draw_geometries([pcd])
+# load pkl file
+def load_pkl(path):
+    with open(path, 'rb') as f:
+        data = pickle.load(f)
+    return data
 
 
-#depth_img = load_image(DEPTH_PATH + "16.npy")
-# depth_img = np.load(DEPTH_PATH + "16.npy")
-# intrinsic_list = load_intrinsic()
+def vis_o3d(pcd):
+    pdc_o3d = o3d.geometry.PointCloud()
+    pdc_o3d.points = o3d.utility.Vector3dVector(pcd)
+    o3d.visualization.draw_geometries([pdc_o3d])
 
-# pcd_np = convert_depth_to_pointcloud(depth_img, intrinsic_list[16])
-# prepped_pcd = preprocess_point_cloud(pcd_np)
-# np.save(CLOUD_PATH + "pcd_16.npy", prepped_pcd)
 
-#pcd_o3d = o3d.geometry.PointCloud()
-#pcd_o3d.points = o3d.utility.Vector3dVector(prepped_pcd)
-#o3d.visualization.draw_geometries([pcd_o3d])
+def save_mat(pcd, filename):
+    sio.savemat(DEPTH_MAT_PATH + filename + ".mat", {"instance": pcd})
+
+
+def vis_mm(model, data, result):
+    # visualizer = Det3DLocalVisualizer(pcd_mode=2)
+    # visualizer.set_points(pcd, mode='xyzrgb')
+    # if boxes is not None:
+    #     visualizer.draw_bboxes_3d(boxes)
+    # visualizer.show()
+    points = data['inputs']['points']
+    data_input = dict(points=points)
+    visualizer = VISUALIZERS.build(model.cfg.visualizer)
+    visualizer.dataset_meta = model.dataset_meta
+    visualizer.add_datasample(
+        'result',
+        data_input,
+        data_sample=result,
+        draw_gt=False,
+        show=True,
+        wait_time=0,
+        out_file='test.png',
+        pred_score_thr=0.5,
+        vis_task='lidar_det')
+
+def main():
+
+    filename = "000016"
+    # depth_img = np.load(DEPTH_PATH + filename + ".npy")
+    # rgb_img = Image.open(RGB_PATH + filename + ".png")
+    # rgb_np = np.asarray(rgb_img, dtype=np.float32)
+    # info = load_pkl(INFO_PATH + filename + ".pkl")
+    # intrinsics = info['matrix_intrinsics']
+    # intrinsics = intrinsics.reshape(9)
+    # intrinsics = intrinsics.astype(np.float32)
+    # pcd = convert_depth_to_pointcloud(depth_img, intrinsics)
+
+    # add color
+    # pcd = np.concatenate((pcd, rgb_np.reshape(-1, 3)), axis=1)
+    # pcd = pcd.astype(np.float32)
+    #
+    # np.save(CLOUD_PATH + filename + ".npy", pcd)
+    path = CLOUD_PATH + filename + ".npy"
+    
+    model = init_model(CONFIG_FILE, CHCKPOINT_FILE)
+    result, data = inference_detector(model, path)
+
+    np.save("results.npy", result)
+
+    predictions = result.pred_instances_3d
+    scores_3d = predictions.scores_3d.cpu().numpy()
+    bboxes_3d = predictions.bboxes_3d.tensor.cpu().numpy()
+    labels_3d = predictions.labels_3d.cpu().numpy()
+
+    indices = []
+    for i, score in enumerate(scores_3d):
+        if score > 0.5:
+            indices.append(i)
+
+    scores_3d = scores_3d[indices]
+    bboxes_3d = bboxes_3d[indices]
+    labels_3d = labels_3d[indices]
+
+    classes = [
+        'bed', 'table', 'sofa', 'chair', 'toilet', 'desk', 'dresser',
+        'night_stand', 'bookshelf', 'bathtub'
+    ]
+
+    for i in labels_3d:
+        print(classes[i])
+
+    # label2cat = {
+    #     label: labels_3d[label]
+    #     for label in range(len(classes))
+    # }
+
+
+    #vis_mm(model, data, result)
+
+
+if __name__ == "__main__":
+    main()
+

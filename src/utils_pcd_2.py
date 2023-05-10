@@ -161,6 +161,8 @@ def main():
     intrinsics = intrinsics.reshape(9)
     pcd = convert_depth_to_pointcloud(depth_img, intrinsics)
 
+    
+
     # convert pcd to float
     pcd_np = pcd.astype(np.float32)
     # visualize_pcd(pcd_np)
