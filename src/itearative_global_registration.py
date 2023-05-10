@@ -127,9 +127,9 @@ def main():
 
     o3d.io.write_point_cloud("pointcloud_map.ply", combined_pcd)
     
-    numpy_pcd = np.asarray(combined_pcd.points)
+    #numpy_pcd = np.asarray(combined_pcd.points)
     
-    np.save("pointcloud_map_numpy.npy", numpy_pcd)
+    #np.save("pointcloud_map_numpy.npy", numpy_pcd)
 
 
 if __name__ == "__main__":
