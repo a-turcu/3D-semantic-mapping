@@ -18,7 +18,7 @@ def main():
 
     pcd = np.load(CLOUD_PATH + filename + ".npy")
     print(pcd.shape)
-    #vis_o3d(pcd)
+    vis_o3d(pcd)
 
 if __name__ == "__main__":
     main()
