@@ -157,3 +157,4 @@ cython_debug/
 *.npy
 .vscode/settings.json
 src/tempCodeRunnerFile.py
+src/mmdetection3d
