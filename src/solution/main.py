@@ -1,9 +1,10 @@
 import numpy as np
 from PIL import Image
 from mmdet3d.apis import inference_detector, init_model
+from os import listdir
 
-from utils_pcd import *
-from const import *
+from solution.utils_pcd import *
+from solution.const import *
 
 
 def load_data(filename):
@@ -14,11 +15,12 @@ def load_data(filename):
     intrinsics = info['matrix_intrinsics']
     intrinsics = intrinsics.reshape(9)
     intrinsics = intrinsics.astype(np.float32)
+    poses = load_pkl(POSE_PATH + filename + ".pkl")
 
-    return depth_img, rgb_np, intrinsics
+    return depth_img, rgb_np, intrinsics, poses
 
 
-def analyze_result(result):
+def analyze_result(result, threshold=0):
     """
     Extracts, thresholds and prints the result of the inference
     """
@@ -29,7 +31,7 @@ def analyze_result(result):
 
     indices = []
     for i, score in enumerate(scores_3d):
-        if score > 0.5:
+        if score > threshold:
             indices.append(i)
 
     scores_3d = scores_3d[indices]
@@ -38,13 +40,29 @@ def analyze_result(result):
 
     # SUNRGBD classes
     # TODO move somewhere else
-    classes = [
+    classes_sunrgbd = [
         'bed', 'table', 'sofa', 'chair', 'toilet', 'desk', 'dresser',
         'night_stand', 'bookshelf', 'bathtub'
     ]
 
+    challenge_classes = classes_sunrgbd[:6]
+    challenge_classes[5] = 'table'
+
     for i in labels_3d:
-        print(classes[i])
+        print(classes_sunrgbd[i])
+
+
+
+def generate_all_pcds():
+
+    for i in range(len(listdir(DEPTH_PATH))):
+        if i < 10:
+            filename = "00000" + str(i)
+        else:
+            filename = "0000" + str(i)
+
+        depth_img, rgb_np, intrinsics, poses = load_data(filename)
+        create_pcd(depth_img, rgb_np, intrinsics, filename)
 
 
 def main():
@@ -52,14 +70,15 @@ def main():
     filename = "000016"
     pcd_path = CLOUD_PATH + filename + ".npy"
 
-    depth_img, rgb_np, intrinsics = load_data(filename)
-    pcd = create_pcd(depth_img, rgb_np, intrinsics, filename)
+    #depth_img, rgb_np, intrinsics = load_data(filename)
+    #pcd = create_pcd(depth_img, rgb_np, intrinsics, filename)
+
 
     model = init_model(CONFIG_FILE, CHCKPOINT_FILE)
     result, data = inference_detector(model, pcd_path)
 
-    analyze_result(result)
-    vis_mm(model, data, result)
+    analyze_result(result, threshold=0.5)
+    #vis_mm(model, data, result, threshold=0.5)
 
 if __name__ == "__main__":
     main()

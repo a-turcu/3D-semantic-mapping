@@ -4,11 +4,18 @@ import matplotlib.pyplot as plt
 import pickle
 import sys
 import time
-from global_registration import execute_fast_global_registration, preprocess_point_cloud
 
-DEPTH_PATH = "D:/Master/Block5/CV2/Data_Smooth/depth/0000"
-RGB_PATH = "D:/Master/Block5/CV2/Data_Smooth/RGB/0000"
-INTRINSIC_PATH = "D:/Master/Block5/CV2/Data_Smooth/RGB_info/0000"
+from PIL import Image
+
+from global_registration import execute_fast_global_registration, preprocess_point_cloud
+from mmdet3d.registry import VISUALIZERS
+from mmdet3d.apis import inference_detector, init_model
+from solution.utils_pcd import load_pkl, convert_depth_to_pointcloud, random_sampling
+from solution.main import load_data
+
+DEPTH_PATH = "../data/data_global/depth/0000"
+RGB_PATH = "../data/data_global/RGB/0000"
+INTRINSIC_PATH = "../data/data_global/RGB_info/0000"
 
 
 def load_png(image_number):
@@ -53,7 +60,7 @@ def load_intrinsics(image_number):
 def create_pcd(rgb_img, depth_img, intrinsic):
     rgbd_img = o3d.geometry.RGBDImage.create_from_color_and_depth(rgb_img, depth_img, convert_rgb_to_intensity=False)
     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_img, intrinsic)
-    pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+    #pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 
     return pcd
 
@@ -78,13 +85,41 @@ def prepare_pcd(voxel_size, pcd, downsample=True):
     return pcd_down, pcd_fpfh
 
 
-def pcd_pipeline(image_number):
-    rgb = load_png(image_number)
-    depth = load_depth(image_number)
-    intrinsics = load_intrinsics(image_number)
-    pcd = create_pcd(rgb, depth, intrinsics)
+def load_data(filename):
+    if filename < 10:
+        filename = "0" + str(filename)
+    depth_img = np.load(DEPTH_PATH + str(filename) + ".npy")
+    rgb_img = Image.open(RGB_PATH + str(filename) + ".png")
+    rgb_np = np.asarray(rgb_img, dtype=np.float32)
+    info = load_pkl(INTRINSIC_PATH + str(filename) + ".pkl")
+    intrinsics = info['matrix_intrinsics']
+    intrinsics = intrinsics.reshape(9)
+    intrinsics = intrinsics.astype(np.float32)
+   # poses = load_pkl(POSE_PATH + filename + ".pkl")
 
-    return pcd
+    return depth_img, rgb_np, intrinsics, None
+
+
+def pcd_pipeline(image_number):
+    # rgb = load_png(image_number)
+    # depth = load_depth(image_number)
+    # intrinsics = load_intrinsics(image_number)
+    # pcd_original = create_pcd(rgb, depth, intrinsics)
+
+    depth_img, rgb_np, intrinsics, poses = load_data(image_number)
+    depth_img[depth_img >= 5] = 0
+    pcd = convert_depth_to_pointcloud(depth_img, intrinsics)
+
+    #pcd = random_sampling(pcd, 30000)
+
+    pcd_o3d = o3d.geometry.PointCloud()
+    pcd_o3d.points = o3d.utility.Vector3dVector(pcd[:, :3] / 1000)
+    pcd_o3d.colors = o3d.utility.Vector3dVector(rgb_np.reshape(-1, 3) / 255.0)
+
+    # o3d.visualization.draw_geometries([pcd_original])
+    # o3d.visualization.draw_geometries([pcd_o3d])
+
+    return pcd_o3d
 
 
 def refine_registration(source, target, result, voxel_size):
@@ -101,11 +136,46 @@ def refine_registration(source, target, result, voxel_size):
     )
     return result
 
+def analyze_result(result, threshold=0):
+    """
+    Extracts, thresholds and prints the result of the inference
+    """
+    predictions = result.pred_instances_3d
+    scores_3d = predictions.scores_3d.cpu().numpy()
+    bboxes_3d = predictions.bboxes_3d.tensor.cpu().numpy()
+    labels_3d = predictions.labels_3d.cpu().numpy()
+
+    indices = []
+    for i, score in enumerate(scores_3d):
+        if score > threshold:
+            indices.append(i)
+
+    scores_3d = scores_3d[indices]
+    bboxes_3d = bboxes_3d[indices]
+    labels_3d = labels_3d[indices]
+
+    # SUNRGBD classes
+    # TODO move somewhere else
+    classes_sunrgbd = [
+        'bed', 'table', 'sofa', 'chair', 'toilet', 'desk', 'dresser',
+        'night_stand', 'bookshelf', 'bathtub'
+    ]
+
+    challenge_classes = classes_sunrgbd[:6]
+    challenge_classes[5] = 'table'
+
+    for i in labels_3d:
+        print(classes_sunrgbd[i])
+
 
 def main():
     voxel_size = 0.00008
     voxel_size_combined = 0.0001
     combined_pcd = pcd_pipeline(image_number=0)
+
+    CHCKPOINT_FILE = "mmdetection3d/checkpoints/votenet_16x8_sunrgbd-3d-10class_20210820_162823-bf11f014.pth"
+    CONFIG_FILE = "mmdetection3d/configs/votenet/votenet_8xb16_sunrgbd-3d.py"
+    model = init_model(CONFIG_FILE, CHCKPOINT_FILE)
 
     start = time.time()
     for img_num in range(1, 56):
@@ -121,15 +191,70 @@ def main():
 
         results_registration = refine_registration(combined_pcd_down, new_pcd_down, results_registration, voxel_size)
         combined_pcd = combined_pcd.transform(results_registration.transformation) + new_pcd
-        print(combined_pcd)
+        #print(combined_pcd)
+        pcd = np.asarray(combined_pcd.points)
+        rgb_np = np.asarray(combined_pcd.colors)
+        pcd = np.concatenate((pcd, rgb_np.reshape(-1, 3)), axis=1)
+        pcd = pcd.astype(np.float32)
+        pcd[:, :3] = pcd[:, :3] * 1000
 
-    o3d.visualization.draw_geometries([combined_pcd])
+        pcd_path = "pcd.npy"
+        np.save(pcd_path, pcd)
 
-    o3d.io.write_point_cloud("pointcloud_map.ply", combined_pcd)
+        # if img_num % 20 == 0:
+        #     result, data = inference_detector(model, pcd_path)
+        #
+        #     points = data['inputs']['points']
+        #     data_input = dict(points=points)
+        #     visualizer = VISUALIZERS.build(model.cfg.visualizer)
+        #     visualizer.dataset_meta = model.dataset_meta
+        #
+        #     analyze_result(result, threshold=0.8)
+        #
+        #     visualizer.add_datasample(
+        #         'result',
+        #         data_input,
+        #         data_sample=result,
+        #         draw_gt=False,
+        #         show=True,
+        #         wait_time=0,
+        #         out_file='test.png',
+        #         pred_score_thr=0.8,
+        #         vis_task='lidar_det')
+
+            # o3d.visualization.draw_geometries([combined_pcd])
+
+    result, data = inference_detector(model, pcd_path)
+
+    points = data['inputs']['points']
+    data_input = dict(points=points)
+    visualizer = VISUALIZERS.build(model.cfg.visualizer)
+    visualizer.dataset_meta = model.dataset_meta
+
+    analyze_result(result, threshold=0.8)
+
+    visualizer.add_datasample(
+        'result',
+        data_input,
+        data_sample=result,
+        draw_gt=False,
+        show=True,
+        wait_time=0,
+        out_file='test.png',
+        pred_score_thr=0.8,
+        vis_task='lidar_det')
+
+
+#o3d.visualization.draw_geometries([combined_pcd])
+
+    #o3d.io.write_point_cloud("pointcloud_map.ply", combined_pcd)
     
-    #numpy_pcd = np.asarray(combined_pcd.points)
-    
-    #np.save("pointcloud_map_numpy.npy", numpy_pcd)
+    # pcd = np.asarray(combined_pcd.points)
+    # rgb_np = np.asarray(combined_pcd.colors)
+    # pcd = np.concatenate((pcd, rgb_np.reshape(-1, 3)), axis=1)
+    # pcd = pcd.astype(np.float32)
+    # print(pcd.shape)
+    # np.save("pointcloud_map_rgb.npy", pcd)
 
 
 if __name__ == "__main__":
