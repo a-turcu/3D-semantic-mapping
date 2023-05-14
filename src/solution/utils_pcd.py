@@ -8,8 +8,7 @@ import pickle
 from mmdet3d.visualization import Det3DLocalVisualizer
 from mmdet3d.registry import VISUALIZERS
 
-
-from solution.const import *
+from const import *
 
 
 #! Unused but could be useful in the future

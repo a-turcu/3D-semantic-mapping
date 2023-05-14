@@ -3,15 +3,15 @@ from PIL import Image
 from mmdet3d.apis import inference_detector, init_model
 from os import listdir
 
-from solution.utils_pcd import *
-from solution.const import *
+from const import *
+from utils_pcd import create_pcd, load_pkl
 
 
 def load_data(filename):
     depth_img = np.load(DEPTH_PATH + filename + ".npy")
-    rgb_img = Image.open(RGB_PATH + filename + ".png")
+    rgb_img = Image.open(RGB_PATH  + filename + ".png")
     rgb_np = np.asarray(rgb_img, dtype=np.float32)
-    info = load_pkl(INFO_PATH + filename + ".pkl")
+    info = load_pkl(INFO_PATH  + filename + ".pkl")
     intrinsics = info['matrix_intrinsics']
     intrinsics = intrinsics.reshape(9)
     intrinsics = intrinsics.astype(np.float32)
@@ -55,7 +55,7 @@ def analyze_result(result, threshold=0):
 
 def generate_all_pcds():
 
-    for i in range(len(listdir(DEPTH_PATH))):
+    for i in range(len(listdir(DEPTH_PATH_PASSIVE))):
         if i < 10:
             filename = "00000" + str(i)
         else:
