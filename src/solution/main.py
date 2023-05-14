@@ -1,11 +1,11 @@
 import numpy as np
 from PIL import Image
 from mmdet3d.apis import inference_detector, init_model
-from os import listdir
+import os
 
 from const import *
-from utils_pcd import create_pcd, load_pkl
-
+from utils_pcd import create_pcd, load_pkl, vis_mm
+from iterative_global_registration import create_global_pointcloud
 
 def load_data(filename):
     depth_img = np.load(DEPTH_PATH + filename + ".npy")
@@ -55,7 +55,7 @@ def analyze_result(result, threshold=0):
 
 def generate_all_pcds():
 
-    for i in range(len(listdir(DEPTH_PATH_PASSIVE))):
+    for i in range(len(os.listdir(DEPTH_PATH_PASSIVE))):
         if i < 10:
             filename = "00000" + str(i)
         else:
@@ -67,18 +67,18 @@ def generate_all_pcds():
 
 def main():
 
-    filename = "000016"
+    filename = "global_pcd"
     pcd_path = CLOUD_PATH + filename + ".npy"
+    if not os.path.exists(pcd_path):
+        create_global_pointcloud(pcd_path)
 
-    #depth_img, rgb_np, intrinsics = load_data(filename)
-    #pcd = create_pcd(depth_img, rgb_np, intrinsics, filename)
-
-
+    threshold = 0.7
     model = init_model(CONFIG_FILE, CHCKPOINT_FILE)
     result, data = inference_detector(model, pcd_path)
 
-    analyze_result(result, threshold=0.5)
-    #vis_mm(model, data, result, threshold=0.5)
+    analyze_result(result, threshold)
+    vis_mm(model, data, result, threshold)
+
 
 if __name__ == "__main__":
     main()

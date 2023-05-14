@@ -88,7 +88,7 @@ def execute_fast_global_registration(
     return result
 
 
-def main():
+def create_global_pointcloud(save_path):
     
     combined_pcd = pcd_pipeline("000000")
 
@@ -116,9 +116,4 @@ def main():
     pcd = pcd.astype(np.float32)
     pcd[:, :3] = pcd[:, :3] * 1000
 
-    pcd_path = CLOUD_PATH + "global_pcd.npy"
-    np.save(pcd_path, pcd)
-
-
-if __name__ == "__main__":
-    main()
+    np.save(save_path, pcd)
