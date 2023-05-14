@@ -8,7 +8,6 @@ import pickle
 from mmdet3d.visualization import Det3DLocalVisualizer
 from mmdet3d.registry import VISUALIZERS
 
-
 from const import *
 
 
@@ -122,12 +121,6 @@ def vis_o3d(pcd):
 
 
 def vis_mm(model, data, result, threshold=0):
-    
-    # visualizer = Det3DLocalVisualizer(pcd_mode=2)
-    # visualizer.set_points(pcd, mode='xyzrgb')
-    # if boxes is not None:
-    #     visualizer.draw_bboxes_3d(boxes)
-    # visualizer.show()
 
     points = data['inputs']['points']
     data_input = dict(points=points)
