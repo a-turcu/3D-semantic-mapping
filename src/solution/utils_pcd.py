@@ -1,25 +1,24 @@
 import os
 import numpy as np
 import open3d as o3d
-import pandas as pd
-from plyfile import PlyData
-import trimesh
 import pickle
-from mmdet3d.visualization import Det3DLocalVisualizer
 from mmdet3d.registry import VISUALIZERS
+from PIL import Image
 
 from const import *
 
 
-#! Unused but could be useful in the future
-def rgbd_to_pcd(rgb_img: o3d.geometry.Image, depth_img: o3d.geometry.Image, intrinsic: o3d.camera.PinholeCameraIntrinsic):
-    """
-    Converts a RGBD image to a point cloud using o3d
-    """
-    rgbd_img = o3d.geometry.RGBDImage.create_from_color_and_depth(rgb_img, depth_img, convert_rgb_to_intensity=False)
-    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_img, intrinsic)
-    pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-    return pcd
+def load_data(filename):
+    depth_np = np.load(DEPTH_PATH + filename + ".npy")
+    rgb_img = Image.open(RGB_PATH + filename + ".png")
+    rgb_np = np.asarray(rgb_img, dtype=np.float32)
+    info = load_pkl(INFO_PATH + filename + ".pkl")
+    intrinsics = info['matrix_intrinsics']
+    intrinsics = intrinsics.reshape(9)
+    intrinsics = intrinsics.astype(np.float32)
+    poses = load_pkl(POSE_PATH + filename + ".pkl")
+
+    return depth_np, rgb_np, intrinsics, poses
 
 
 # TODO try saving to bin instead of npy
@@ -29,9 +28,8 @@ def create_pcd(depth_img, rgb_np, intrinsics, filename, save=True):
     Optionally save it as numpy array
     ! No o3d used
     """
-
     pcd = convert_depth_to_pointcloud(depth_img, intrinsics)
-    #add color
+    # add color
     pcd = np.concatenate((pcd, rgb_np.reshape(-1, 3)), axis=1)
     pcd = pcd.astype(np.float32)
 
@@ -52,24 +50,6 @@ def load_pkl(path):
 
 
 #! Unused
-def convert_ply(input_path, output_path):
-    plydata = PlyData.read(input_path)  # read file
-    data = plydata.elements[0].data  # read data
-    data_pd = pd.DataFrame(data)  # convert to DataFrame
-    data_np = np.zeros(data_pd.shape, dtype=np.float)  # initialize array to store data
-    property_names = data[0].dtype.names  # read names of properties
-    for i, name in enumerate(property_names):  # read data by property
-        data_np[:, i] = data_pd[name]
-    data_np.astype(np.float32).tofile(output_path)
-
-
-#! Unused
-def to_ply(input_path, output_path, original_type):
-    mesh = trimesh.load(input_path, file_type=original_type)  # read file
-    mesh.export(output_path, file_type='ply')  # convert to ply
-
-
-#! Unused
 def random_sampling(pc, num_sample, replace=None, return_choices=False):
     """ Input is NxC, output is num_samplexC
     """
@@ -79,20 +59,6 @@ def random_sampling(pc, num_sample, replace=None, return_choices=False):
         return pc[choices], choices
     else:
         return pc[choices]
-
-
-#! Unused
-def preprocess_point_cloud(point_cloud):
-    ''' Prepare the numpy point cloud (N,3) for forward pass '''
-    point_cloud = point_cloud[:, 0:3]  # do not use color for now
-    floor_height = np.percentile(point_cloud[:, 2], 0.99)
-    height = point_cloud[:, 2] - floor_height
-    
-    point_cloud = np.concatenate(
-        [point_cloud, np.expand_dims(height, 1)], 1)  # (N,4) or (N,7)
-    point_cloud = random_sampling(point_cloud, NUM_POINTS)
-    pc = np.expand_dims(point_cloud.astype(np.float32), 0)  # (1,n,4)
-    return pc
 
 
 def convert_depth_to_pointcloud(depth_image, intr):
@@ -108,9 +74,7 @@ def convert_depth_to_pointcloud(depth_image, intr):
     y3 = (y - cy) * depth_image * 1 / fy
     # pack the point cloud according to the votenet camera coordinate system
     # which is actually the same as benchbot's
-    point3d = np.stack((x3.flatten(), depth_image.flatten(), -y3.flatten()),
-                       axis=1)
-
+    point3d = np.stack((x3.flatten(), depth_image.flatten(), -y3.flatten()), axis=1)
     return point3d
 
 
@@ -120,20 +84,40 @@ def vis_o3d(pcd):
     o3d.visualization.draw_geometries([pdc_o3d])
 
 
-def vis_mm(model, data, result, threshold=0):
+def numpy_to_open3d(pcd, rgb_np):
+    # convert numpy pcd to open3d pcd
+    points = pcd[:, :3] / 1000
+    colors = rgb_np.reshape(-1, 3) / 255.0
+    pcd_o3d = o3d.geometry.PointCloud()
+    pcd_o3d.points = o3d.utility.Vector3dVector(points)
+    pcd_o3d.colors = o3d.utility.Vector3dVector(colors)
+    return pcd_o3d
 
-    points = data['inputs']['points']
-    data_input = dict(points=points)
-    visualizer = VISUALIZERS.build(model.cfg.visualizer)
-    visualizer.dataset_meta = model.dataset_meta
-    visualizer.add_datasample(
-        'result',
-        data_input,
-        data_sample=result,
-        draw_gt=False,
-        show=True,
-        wait_time=0,
-        out_file='test.png',
-        pred_score_thr=threshold,
-        vis_task='lidar_det')
 
+def open3d_to_numpy(pcd_o3d):
+    # convert open3d to numpy
+    pcd = np.asarray(pcd_o3d.points)
+    rgb_np = np.asarray(pcd_o3d.colors)
+    pcd = np.concatenate((pcd, rgb_np.reshape(-1, 3)), axis=1)
+    pcd = pcd.astype(np.float32)
+    pcd[:, :3] = pcd[:, :3] * 1000
+    return pcd
+
+
+def transform_pcd(pcd):
+
+    # sample pcd for faster testing
+    pcd = random_sampling(pcd, 500_000)
+
+    # numpy to o3d
+    pcd_o3d = numpy_to_open3d(pcd, pcd[:, 3:])
+
+    # transform
+    R = pcd_o3d.get_rotation_matrix_from_xyz((0, 0, 0.63*np.pi))
+    pcd_o3d = pcd_o3d.rotate(R, center=(0, 0, 0))
+    pcd_o3d = pcd_o3d.translate((0.0011, 0.0012, 0.0012))
+
+    # o3d to numpy
+    pcd = open3d_to_numpy(pcd_o3d)
+
+    return pcd
