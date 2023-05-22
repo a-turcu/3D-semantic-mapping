@@ -67,37 +67,47 @@ def analyze_result(result, threshold=0):
 
     # SUNRGBD classes
     # TODO move somewhere else
+
+
+    return all_results
+
+
+def create_results_json(labels, scores, bboxes):
+
+    task_details = {"name": "semantic_slam:active:ground_truth", "results_format": "object_map"}
+    environment_details = [{"name": "miniroom", "variant": 1}]
+    main_json = {"task_details": task_details, "environment_details": environment_details}
+
     class_list = [
         'bed', 'table', 'sofa', 'chair', 'toilet', 'desk', 'dresser',
         'night_stand', 'bookshelf', 'bathtub'
     ]
 
-    all_results = create_empty()
-    objects = []
-    for index, val in enumerate(labels_3d):
-        #print(classes_sunrgbd[val], bboxes_3d[index])
-        #print('\n')
-        result = {
+    results_json = create_empty()
+    object_list = []
+    for index, val in enumerate(labels):
+        object = {
             "class": class_list[val],
             "class_ID": val,
-            "confidence": scores_3d[index].tolist(),
-            "centroid": bboxes_3d[index][:3].tolist(),
-            "extent": bboxes_3d[index][3:6].tolist(),
+            "confidence": scores[index].tolist(),
+            "centroid": bboxes[index][:3].tolist(),
+            "extent": bboxes[index][3:6].tolist(),
         }
-        objects.append(result)
+        object_list.append(object)
 
-    objects = jsonify(objects)
+    object_list = jsonify(object_list)
 
-    for r in objects:
+    for r in object_list:
         r['label_probs'] = [0] * len(class_list)
         if r['class'] in class_list:
             r['label_probs'][class_list.index(r['class'])] = r['confidence']
 
-    all_results['objects'] = objects
+    results_json['objects'] = object_list
+    results_json["class_list"] = class_list
 
-    #all_results = jsonify(all_results)
+    main_json["results"] = results_json
 
-    return all_results
+    return main_json
 
 
 DEFAULT_CLASS_LIST = [
