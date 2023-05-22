@@ -10,7 +10,7 @@ from mmdet3d.visualization import Det3DLocalVisualizer
 from utils_pcd import create_pcd, load_pkl, vis_mm, random_sampling
 import open3d as o3d
 from benchbot_eval.ground_truth_creator import GroundTruthCreator
-
+import json
 
 def load_data(filename):
     depth_np = np.load(DEPTH_PATH + filename + ".npy")
@@ -23,6 +23,28 @@ def load_data(filename):
     poses = load_pkl(POSE_PATH + filename + ".pkl")
 
     return depth_np, rgb_np, intrinsics, poses
+
+def jsonify(data_list):
+    json_list = []
+    for data in data_list:
+        json_data = dict()
+        for key, value in data.items():
+            if isinstance(value, list):  # for lists
+                value = [
+                    jsonify(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            if isinstance(value, dict):  # for nested lists
+                value = jsonify(value)
+            if isinstance(key, int):  # if key is integer: > to string
+                key = str(key)
+            if type(
+                    value
+            ).__module__ == 'numpy':  # if value is numpy.*: > to python list
+                value = value.tolist()
+            json_data[key] = value
+        json_list.append(json_data)
+    return json_list
 
 
 def analyze_result(result, threshold=0):
@@ -45,17 +67,61 @@ def analyze_result(result, threshold=0):
 
     # SUNRGBD classes
     # TODO move somewhere else
-    classes_sunrgbd = [
+    class_list = [
         'bed', 'table', 'sofa', 'chair', 'toilet', 'desk', 'dresser',
         'night_stand', 'bookshelf', 'bathtub'
     ]
 
-    #challenge_classes = classes_sunrgbd[:6]
-    #challenge_classes[5] = 'table'
-
+    all_results = create_empty()
+    objects = []
     for index, val in enumerate(labels_3d):
-        print(classes_sunrgbd[val], bboxes_3d[index])
-        print('\n')
+        #print(classes_sunrgbd[val], bboxes_3d[index])
+        #print('\n')
+        result = {
+            "class": class_list[val],
+            "class_ID": val,
+            "confidence": scores_3d[index].tolist(),
+            "centroid": bboxes_3d[index][:3].tolist(),
+            "extent": bboxes_3d[index][3:6].tolist(),
+        }
+        objects.append(result)
+
+    objects = jsonify(objects)
+
+    for r in objects:
+        r['label_probs'] = [0] * len(class_list)
+        if r['class'] in class_list:
+            r['label_probs'][class_list.index(r['class'])] = r['confidence']
+
+    all_results['objects'] = objects
+
+    #all_results = jsonify(all_results)
+
+    return all_results
+
+
+DEFAULT_CLASS_LIST = [
+    'bottle', 'cup', 'knife', 'bowl', 'wine glass', 'fork', 'spoon', 'banana',
+    'apple', 'orange', 'cake', 'potted plant', 'mouse', 'keyboard', 'laptop',
+    'cell phone', 'book', 'clock', 'chair', 'table', 'couch', 'bed', 'toilet',
+    'tv', 'microwave', 'toaster', 'refrigerator', 'oven', 'sink', 'person',
+    'background'
+]
+
+
+def create_empty(class_list=None):
+    return {
+        'objects': [],
+        'class_list': DEFAULT_CLASS_LIST if class_list is None else class_list
+    }
+
+def create_empty_object(num_classes=None):
+    return {
+        'label_probs': [0] *
+                       (len(DEFAULT_CLASS_LIST) if num_classes is None else num_classes),
+        'centroid': [0] * 3,
+        'extent': [0] * 3
+    }
 
 
 def generate_all_pcds():
@@ -111,34 +177,39 @@ def transform_pcd(pcd):
 
 def main():
 
-    filename = "global_pcd"
-
-    pcd_path = CLOUD_PATH + filename + ".npy"
-    pcd = np.load(pcd_path)
-
-    pcd = transform_pcd(pcd)
+    # filename = "global_pcd"
+    #
+    # pcd_path = CLOUD_PATH + filename + ".npy"
+    # pcd = np.load(pcd_path)
+    #
+    # pcd = transform_pcd(pcd)
 
     transformed_path = CLOUD_PATH + "global_pcd_transformed.npy"
-    np.save(transformed_path, pcd)
+    # np.save(transformed_path, pcd)
 
     threshold = 0.7
     model = init_model(CONFIG_FILE, CHCKPOINT_FILE)
     result, data = inference_detector(model, transformed_path)
+    results = analyze_result(result, threshold)
+    print(results)
+    save_filename = "results.json"
+    with open(save_filename, 'w') as f:
+        json.dump(results, f)
 
-    # bed
-    box_bed = DepthInstance3DBoxes(torch.tensor([[2.20074341, 0.05944466, 0.44632973, 2.29851074, 1.85151764, 0.89577698, 0]]))
-
-    # sink
-    box_sink = DepthInstance3DBoxes(torch.tensor([[-0.58994232, 3.07765717, 0.82831787, 0.32866461999999996, 0.27531434, 0.14530166, 0]]))
-
-    # table 1
-    box_table1 = DepthInstance3DBoxes(torch.tensor([[0.47003494, -0.53999237, 0.17274715000000002, 0.60470368, 0.40477172000000006, 0.34549430000000003, 0]]))
-
-    # table 2
-    box_table2 = DepthInstance3DBoxes(torch.tensor([[3.11474518, 1.08274681, 0.17274715000000002, 0.40477112, 0.60470322, 0.34549430000000003, 0]]))
-
-    # center
-    box_center = DepthInstance3DBoxes(torch.tensor([[-0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0]]))
+    # # bed
+    # box_bed = DepthInstance3DBoxes(torch.tensor([[2.20074341, 0.05944466, 0.44632973, 2.29851074, 1.85151764, 0.89577698, 0]]))
+    #
+    # # sink
+    # box_sink = DepthInstance3DBoxes(torch.tensor([[-0.58994232, 3.07765717, 0.82831787, 0.32866461999999996, 0.27531434, 0.14530166, 0]]))
+    #
+    # # table 1
+    # box_table1 = DepthInstance3DBoxes(torch.tensor([[0.47003494, -0.53999237, 0.17274715000000002, 0.60470368, 0.40477172000000006, 0.34549430000000003, 0]]))
+    #
+    # # table 2
+    # box_table2 = DepthInstance3DBoxes(torch.tensor([[3.11474518, 1.08274681, 0.17274715000000002, 0.40477112, 0.60470322, 0.34549430000000003, 0]]))
+    #
+    # # center
+    # box_center = DepthInstance3DBoxes(torch.tensor([[-0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0]]))
 
     # result.pred_instances_3d.bboxes_3d.tensor[0, :] = box_bed.tensor
     # result.pred_instances_3d.bboxes_3d.tensor[1, :] = box_sink.tensor
@@ -152,8 +223,8 @@ def main():
     # result.pred_instances_3d.scores_3d[3] = 0.99
 
 
-    vis_mm(model, data, result, threshold)
-    analyze_result(result, threshold)
+    #vis_mm(model, data, result, threshold)
+
     print("ok")
 
 
