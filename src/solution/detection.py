@@ -142,5 +142,5 @@ def vis_mm_2(pcd, color=False, boxes=None):
 
 def detect(model, pcd_path):
     result, data = inference_detector(model, pcd_path)
-    vis_mm(model, data, result, threshold=0.7)
+    vis_mm(model, data, result, threshold=0.5)
     return result

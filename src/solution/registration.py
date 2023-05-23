@@ -96,6 +96,3 @@ def iterative_global_registration(save_path):
 
     o3d.visualization.draw_geometries([combined_pcd])
     o3d.io.write_point_cloud(save_path + ".ply", combined_pcd)
-
-
-iterative_global_registration("data/point_clouds/iterative_global_pcd")

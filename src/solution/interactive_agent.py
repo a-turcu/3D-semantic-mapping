@@ -9,15 +9,11 @@ import open3d as o3d
 from benchbot_api import ActionResult, Agent
 from benchbot_api.tools import ObservationVisualiser
 from mmdet3d.apis import init_model
-from mmdet3d.visualization import Det3DLocalVisualizer
-from mmdet3d.registry import VISUALIZERS
 from detection import detect
 
 from registration import combine_PCD, load_pcd_pipeline
 from utils_pcd import open3d_to_numpy
-
-CHCKPOINT_FILE = "mmdetection3d/checkpoints/votenet_16x8_sunrgbd-3d-10class_20210820_162823-bf11f014.pth"
-CONFIG_FILE = "mmdetection3d/configs/votenet/votenet_8xb16_sunrgbd-3d.py"
+from const import *
 
 
 class InteractiveAgent(Agent):
@@ -27,6 +23,9 @@ class InteractiveAgent(Agent):
         self.step_count = 0
         self.combined_pcd = None
         self.model = init_model(CONFIG_FILE, CHCKPOINT_FILE)
+
+        with open("solution/action_list_miniroom1.txt", 'r') as f:
+            self.actions = f.readlines()
 
         signal.signal(signal.SIGINT, self._die_gracefully)
 
@@ -56,17 +55,16 @@ class InteractiveAgent(Agent):
 
         # Update the visualisation
         self.vis.visualise(observations, self.step_count)
-
+        print("Step: ", self.step_count)
         if self.step_count % 10 == 0 and self.step_count != 0:
 
             pcd = open3d_to_numpy(self.combined_pcd)
 
             pcd_path = 'pcd.npy'
             np.save(pcd_path, pcd)
-
             results = detect(self.model, pcd_path)
 
-    # Prompt the user to pick an active mode action, returning when they
+        # Prompt the user to pick an active mode action, returning when they
         # have made a valid selection
         action = None
         action_args = None
@@ -77,11 +75,16 @@ class InteractiveAgent(Agent):
                     " or 'a <angle_in_degrees>'): ",
                     end='')
                 sys.stdout.flush()
-                i = None
-                while not i:
-                    i, _, _ = select.select([sys.stdin], [], [], 0)
-                    self.vis.update()
-                action_text = sys.stdin.readline().split(" ")
+
+                if self.step_count < len(self.actions):
+                    action_text = self.actions[self.step_count].split(" ")
+                else:
+                    i = None
+                    while not i:
+                        i, _, _ = select.select([sys.stdin], [], [], 0)
+                        self.vis.update()
+                    action_text = sys.stdin.readline().split(" ")
+
                 if action_text[0] == 'a':
                     action = 'move_angle'
                     action_args = {
