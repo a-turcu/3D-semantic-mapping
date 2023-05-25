@@ -1,6 +1,6 @@
 BENCHBOT
 
-benchbot_run --robot carter_omni --env miniroom:1 --task semantic_slam:active:ground_truth
+benchbot_run --robot carter_omni --env miniroom:1 --task semantic_slam:active:ground_truth -f
 
 envs:
 dev: miniroom, house

@@ -84,7 +84,7 @@ def combine_PCD(combined_pcd, new_pcd, voxel_size=0.00008):
 
 def iterative_global_registration(save_path):
 
-    combined_pcd= load_pcd_pipeline("000000")
+    combined_pcd = load_pcd_pipeline("000000")
     o3d.visualization.draw_geometries([combined_pcd])
 
     start = time.time()
@@ -96,3 +96,5 @@ def iterative_global_registration(save_path):
 
     o3d.visualization.draw_geometries([combined_pcd])
     o3d.io.write_point_cloud(save_path + ".ply", combined_pcd)
+
+    return combined_pcd
