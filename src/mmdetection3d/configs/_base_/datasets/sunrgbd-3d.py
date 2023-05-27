@@ -39,7 +39,7 @@ train_pipeline = [
         rot_range=[-0.523599, 0.523599],
         scale_ratio_range=[0.85, 1.15],
         shift_height=True),
-    dict(type='PointSample', num_points=20000),
+    dict(type='PointSample', num_points=500_000),
     dict(
         type='Pack3DDetInputs',
         keys=['points', 'gt_bboxes_3d', 'gt_labels_3d'])
@@ -68,7 +68,7 @@ test_pipeline = [
                 sync_2d=False,
                 flip_ratio_bev_horizontal=0.5,
             ),
-            dict(type='PointSample', num_points=20000)
+            dict(type='PointSample', num_points=500_000)
         ]),
     dict(type='Pack3DDetInputs', keys=['points'])
 ]

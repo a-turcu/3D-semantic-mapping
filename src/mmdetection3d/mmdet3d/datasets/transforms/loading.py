@@ -615,8 +615,9 @@ class LoadPointsFromFile(BaseTransform):
             np.ndarray: An array containing point clouds data.
         """
         try:
-            pts_bytes = get(pts_filename, backend_args=self.backend_args)
-            points = np.frombuffer(pts_bytes, dtype=np.float32)
+            # pts_bytes = get(pts_filename, backend_args=self.backend_args)
+            # points = np.frombuffer(pts_bytes, dtype=np.float32)
+            points = np.load(pts_filename)
         except ConnectionError:
             mmengine.check_file_exist(pts_filename)
             if pts_filename.endswith('.npy'):
