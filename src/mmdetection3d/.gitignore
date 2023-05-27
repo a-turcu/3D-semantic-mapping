@@ -119,8 +119,6 @@ exps/
 *~
 mmdet3d/.mim
 
-# Pytorch
-*.pth
 
 # demo
 *.jpg
