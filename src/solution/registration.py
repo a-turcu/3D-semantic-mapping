@@ -3,9 +3,7 @@ import time
 
 from utils_pcd import load_data, convert_depth_to_pointcloud, numpy_to_open3d
 
-
 VOXEL_SIZE = 0.00008
-
 
 
 def load_pcd_pipeline(filename, observations=None, mode="offline"):

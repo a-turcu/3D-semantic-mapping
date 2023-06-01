@@ -2,54 +2,12 @@ import os
 import numpy as np
 import open3d as o3d
 import pickle
-from mmdet3d.registry import VISUALIZERS
+#from mmdet3d.registry import VISUALIZERS
 from PIL import Image
 
 from const import *
 
 
-def load_data(filename):
-    depth_np = np.load(DEPTH_PATH + filename + ".npy")
-    rgb_img = Image.open(RGB_PATH + filename + ".png")
-    rgb_np = np.asarray(rgb_img, dtype=np.float32)
-    info = load_pkl(INFO_PATH + filename + ".pkl")
-    intrinsics = info['matrix_intrinsics']
-    intrinsics = intrinsics.reshape(9)
-    intrinsics = intrinsics.astype(np.float32)
-    poses = load_pkl(POSE_PATH + filename + ".pkl")
-
-    return depth_np, rgb_np, intrinsics, poses
-
-
-# TODO try saving to bin instead of npy
-def create_pcd(depth_img, rgb_np, intrinsics, filename, save=True):
-    """
-    Converts a depth image to a point cloud and adds color afterwards
-    Optionally save it as numpy array
-    ! No o3d used
-    """
-    pcd = convert_depth_to_pointcloud(depth_img, intrinsics)
-    # add color
-    pcd = np.concatenate((pcd, rgb_np.reshape(-1, 3)), axis=1)
-    pcd = pcd.astype(np.float32)
-
-    if save:
-        # if path does not exist, create it
-        if not os.path.exists(CLOUD_PATH):
-            os.makedirs(CLOUD_PATH)
-        np.save(CLOUD_PATH + filename + ".npy", pcd)
-    
-    return pcd
-
-
-# load pkl file
-def load_pkl(path):
-    with open(path, 'rb') as f:
-        data = pickle.load(f)
-    return data
-
-
-#! Unused
 def random_sampling(pc, num_sample, replace=None, return_choices=False):
     """ Input is NxC, output is num_samplexC
     """
