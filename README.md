@@ -4,7 +4,7 @@
 
 ### Prerequisites
 
-* Benchbot software stack
+* [Benchbot] (https://github.com/qcr/benchbot) software stack 
 * pytorch 1.12
 * cudatoolkit 10.2
 
