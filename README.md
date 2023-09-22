@@ -1,5 +1,24 @@
 # Benchbot Semantic VSLAM 
 
+This repository contains our submission for the **Robotic Vision Scene Understanding Challenge 2023**,
+as part of the *Computer Vision 2 course* at the *University of Amsterdam*. Vision-based scene understanding
+is a common task in the fields of robotics and computer vision in which visual systems attempt to
+understand their environment, both from a semantic and geometric perspective.
+
+The core of our method is the creation of a 3D point cloud map of a simulated environment with the
+use of fast global registration. The semantic map is then created using a pre-trained 3D object detection
+model that assigns bounding boxes around objects in the original 3D map. The results indicate that, while
+very accurate in terms of predicting the label of an object, our method is not robust regarding 
+other aspects important to the resulting map, such as the number of objects detected and their 
+spatial quality. Our pipeline is impaired by components related to the estimation of coordinate 
+transformations and limitations of the fast global registration method.
+
+<p align="center">
+    <img src="figures/miniroom-reconstruction.png" title="3D reconstruction of the Miniroom environment." width="40%">
+    <img src="figures/pointcloud-segmented.png" title="3D segmentation of the Miniroom environment." width="40%>
+</p>
+
+
 ## Installation
 
 ### Prerequisites
