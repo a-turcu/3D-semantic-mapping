@@ -13,9 +13,9 @@ other aspects important to the resulting map, such as the number of objects dete
 spatial quality. Our pipeline is impaired by components related to the estimation of coordinate 
 transformations and limitations of the fast global registration method.
 
-<img src="figures/miniroom-reconstruction.png" title="3D reconstruction of the Miniroom environment." width="40%" />
+<img src="figures/miniroom-reconstruction.png" title="3D reconstruction of the Miniroom environment." width="300" />
 
-<img src="figures/pointcloud-segmented.png" title="3D segmentation of the Miniroom environment." width="40%" />
+<img src="figures/pointcloud-segmented.png" title="3D segmentation of the Miniroom environment." width="300" />
 
 
 The figures show a 3D reconstruction of the "Miniroom" environment, as well as the 3D segmentation of the created point cloud.
